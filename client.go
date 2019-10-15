@@ -48,7 +48,7 @@ func (c *Client) performRequest(method, url string, body *bytes.Reader) (*http.R
 // AddRole adds a role to the role map.
 // See https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L233
 func (c *Client) AddRole(roleType, roleName string, permissionIDs []string, overwrite string) error {
-	targetURL := fmt.Sprintf("%s/%s", c.HostName, "/role-strategy/strategy/addRole")
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/addRole", c.HostName)
 	body := bytes.NewReader([]byte(
 		fmt.Sprintf(
 			"type=%s&amp;roleName=%s&amp;permissionIds=%s&amp;overwrite=%s",
@@ -79,7 +79,7 @@ func (c *Client) AddRole(roleType, roleName string, permissionIDs []string, over
 // RemoveRoles removes one or multiple roles with the given names.
 // https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L363
 func (c *Client) RemoveRoles(roleType string, roleNames []string) error {
-	targetURL := fmt.Sprintf("%s/%s", c.HostName, "role-strategy/strategy/removeRoles")
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/removeRoles", c.HostName)
 	body := bytes.NewReader([]byte(
 		fmt.Sprintf("type=%s&amp;roleNames=%s",
 			roleType,
@@ -109,7 +109,7 @@ func (c *Client) RemoveRoles(roleType string, roleNames []string) error {
 // SID.
 // https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L393
 func (c *Client) AssignRole(roleType, roleName, sid string) error {
-	targetURL := fmt.Sprintf("%s/%s", c.HostName, "role-strategy/strategy/assignRole")
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/assignRole", c.HostName)
 	body := bytes.NewReader([]byte(
 		fmt.Sprintf("type=%s&amp;roleName=%s&amp;sid=%s",
 			roleType,
@@ -170,9 +170,8 @@ func (c *Client) UnassignRole(roleType, roleName, sid string) error {
 // GetRole gets the role with the given role name.
 // https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L324
 func (c *Client) GetRole(roleType, roleName string) (*Role, error) {
-	targetURL := fmt.Sprintf("%s/%s?type=%s&roleName=%s",
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/getRole?type=%s&roleName=%s",
 		c.HostName,
-		"/role-strategy/strategy/getRole",
 		roleType,
 		roleName,
 	)
