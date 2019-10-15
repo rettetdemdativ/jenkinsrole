@@ -528,7 +528,7 @@ func TestGetAllRoles(t *testing.T) {
 		}
 
 		if _, ok := rolesMap[req.URL.Query().Get("type")]; !ok {
-			resp.WriteHeader(http.StatusNotFound)
+			resp.WriteHeader(http.StatusInternalServerError)
 			resp.Write([]byte(fmt.Sprintf("Role type %s does not exist", req.URL.Query().Get("type"))))
 			return
 		}
