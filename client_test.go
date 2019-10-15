@@ -208,7 +208,6 @@ func TestGetRole(t *testing.T) {
 	sids := []string{"admin"}
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-
 		headerCode := checkValidHeader(req)
 		if headerCode != http.StatusOK {
 			resp.WriteHeader(headerCode)
