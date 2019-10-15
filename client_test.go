@@ -337,6 +337,76 @@ func TestUnassignRole(t *testing.T) {
 	}
 }
 
+func TestDeleteSID(t *testing.T) {
+	const (
+		roleType = "globalRoles"
+		sid      = "sid1"
+	)
+
+	testCases := []struct {
+		name string
+
+		headerUser  string
+		headerToken string
+		roleType    string
+		sid         string
+
+		expectError bool
+	}{
+		{"valid", jenkinsUser, jenkinsToken, roleType, sid, false},
+		{"invalid_header", jenkinsUser, "", roleType, sid, true},
+		{"incomplete_body", jenkinsUser, jenkinsToken, "", sid, true},
+	}
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		headerCode := checkValidHeader(req)
+		if headerCode != http.StatusOK {
+			resp.WriteHeader(headerCode)
+			resp.Write([]byte("Invalid header"))
+			return
+		}
+
+		defer req.Body.Close()
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte(err.Error()))
+			return
+		}
+
+		params, err := url.ParseQuery(string(body))
+		if err != nil {
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte(err.Error()))
+			return
+		}
+
+		if params.Get("type") == "" || params.Get("sid") == "" {
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte("Missing query param"))
+			return
+		}
+	}))
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := jenkinsrole.Client{
+				HostName: testServer.URL,
+				User:     tc.headerUser,
+				Token:    tc.headerToken,
+			}
+
+			err := c.DeleteSID(tc.roleType, tc.sid)
+
+			if !tc.expectError {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestGetRole(t *testing.T) {
 	const (
 		roleType = "globalRoles"

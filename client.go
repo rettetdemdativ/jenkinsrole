@@ -167,6 +167,35 @@ func (c *Client) UnassignRole(roleType, roleName, sid string) error {
 	}
 }
 
+// DeleteSID deletes an SID from all granted roles.
+// https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L431
+func (c *Client) DeleteSID(roleType, sid string) error {
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/deleteSid", c.HostName)
+	body := bytes.NewReader([]byte(
+		fmt.Sprintf("type=%s&amp;sid=%s",
+			roleType,
+			sid,
+		),
+	))
+
+	resp, err := c.performRequest(http.MethodPost, targetURL, body)
+	if err != nil {
+		return err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	default:
+		defer resp.Body.Close()
+		respBody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return errors.New(string(respBody))
+	}
+}
+
 // GetRole gets the role with the given role name.
 // https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L324
 func (c *Client) GetRole(roleType, roleName string) (*Role, error) {
