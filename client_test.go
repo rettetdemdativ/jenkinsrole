@@ -5,6 +5,7 @@ package jenkinsrole_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -480,6 +481,76 @@ func TestGetRole(t *testing.T) {
 
 				assert.EqualValues(t, role.SIDs, sids)
 				assert.EqualValues(t, role.PermissionIDs, permissionIDs)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestGetAllRoles(t *testing.T) {
+	rwu := jenkinsrole.RolesWithUsers{
+		"admin":    []string{"sid1", "sid2", "sid3"},
+		"testrole": []string{},
+	}
+	rolesMap := map[string]jenkinsrole.RolesWithUsers{
+		"globalRoles":  rwu,
+		"projectRoles": make(jenkinsrole.RolesWithUsers),
+	}
+
+	testCases := []struct {
+		name string
+
+		headerUser     string
+		headerToken    string
+		roleType       string
+		rolesWithUsers jenkinsrole.RolesWithUsers
+
+		expectError bool
+	}{
+		{"valid", jenkinsUser, jenkinsToken, "globalRoles", rolesMap["globalRoles"], false},
+		{"empty_map", jenkinsUser, jenkinsToken, "projectRoles", rolesMap["projectRoles"], false},
+		{"invalid_header", jenkinsUser, "", "globalRoles", rolesMap["globalRoles"], true},
+	}
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		headerCode := checkValidHeader(req)
+		if headerCode != http.StatusOK {
+			resp.WriteHeader(headerCode)
+			resp.Write([]byte("Invalid header"))
+			return
+		}
+
+		if req.URL.Query().Get("type") == "" {
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte("Missing query param"))
+			return
+		}
+
+		if _, ok := rolesMap[req.URL.Query().Get("type")]; !ok {
+			resp.WriteHeader(http.StatusNotFound)
+			resp.Write([]byte(fmt.Sprintf("Role type %s does not exist", req.URL.Query().Get("type"))))
+			return
+		}
+
+		resp.Header().Set("Content-Type", "application/json")
+		resp.WriteHeader(http.StatusOK)
+		json.NewEncoder(resp).Encode(rolesMap[req.URL.Query().Get("type")])
+	}))
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &jenkinsrole.Client{
+				HostName: testServer.URL,
+				User:     tc.headerUser,
+				Token:    tc.headerToken,
+			}
+
+			rwu, err := c.GetAllRoles(tc.roleType)
+
+			if !tc.expectError {
+				assert.NoError(t, err)
+				assert.EqualValues(t, tc.rolesWithUsers, rwu)
 			} else {
 				assert.Error(t, err)
 			}

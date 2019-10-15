@@ -227,3 +227,30 @@ func (c *Client) GetRole(roleType, roleName string) (*Role, error) {
 		return nil, errors.New(string(respBody))
 	}
 }
+
+// GetAllRoles gets a list of all roles with all users they're assigned to.
+func (c *Client) GetAllRoles(roleType string) (RolesWithUsers, error) {
+	targetURL := fmt.Sprintf("%s/role-strategy/strategy/getAllRoles?type=%s", c.HostName, roleType)
+
+	resp, err := c.performRequest(http.MethodGet, targetURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		rwu := make(map[string][]string)
+		if err := json.Unmarshal(respBody, &rwu); err != nil {
+			return nil, err
+		}
+		return rwu, nil
+	default:
+		return nil, errors.New(string(respBody))
+	}
+}
