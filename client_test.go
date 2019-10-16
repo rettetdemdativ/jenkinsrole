@@ -40,35 +40,32 @@ func checkValidHeader(req *http.Request) int {
 	return http.StatusOK
 }
 
-// addRoleHandler is a mock handler function used by httptest to test the
-// AddRole functionality.
-func addRoleHandler(res http.ResponseWriter, req *http.Request) {
-
-}
-
 func TestAddRole(t *testing.T) {
 	const (
-		roleType      = "globalRole"
-		roleName      = "admin-role"
-		permissionIDs = "hudson.model.Item.Discover,hudson.model.Item.ExtendedRead"
-		overwrite     = "true"
+		roleType  = "globalRole"
+		roleName  = "admin-role"
+		overwrite = "true"
 	)
+
+	defaultPermissionList := []jenkinsrole.Permission{
+		jenkinsrole.ItemReadPermission, jenkinsrole.ComputerBuildPermission,
+	}
 
 	testCases := []struct {
 		name string
 
-		headerUser    string
-		headerToken   string
-		roleType      string
-		roleName      string
-		permissionIDs string
-		overwrite     string
+		headerUser  string
+		headerToken string
+		roleType    string
+		roleName    string
+		permissions []jenkinsrole.Permission
+		overwrite   string
 
 		expectError bool
 	}{
-		{"valid", jenkinsUser, jenkinsToken, roleType, roleName, permissionIDs, overwrite, false},
-		{"invalid header", "", "", roleType, roleName, permissionIDs, overwrite, true},
-		{"body_missing_param", jenkinsUser, jenkinsToken, "", roleName, permissionIDs, overwrite, true},
+		{"valid", jenkinsUser, jenkinsToken, roleType, roleName, defaultPermissionList, overwrite, false},
+		{"invalid header", "", "", roleType, roleName, defaultPermissionList, overwrite, true},
+		{"body_missing_param", jenkinsUser, jenkinsToken, "", roleName, defaultPermissionList, overwrite, true},
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
@@ -113,7 +110,7 @@ func TestAddRole(t *testing.T) {
 				Token:    tc.headerToken,
 			}
 
-			err := c.AddRole(tc.roleType, tc.roleName, []string{tc.permissionIDs}, tc.overwrite)
+			err := c.AddRole(tc.roleType, tc.roleName, tc.permissions, tc.overwrite)
 
 			if !tc.expectError {
 				assert.NoError(t, err)
