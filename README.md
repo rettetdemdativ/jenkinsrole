@@ -17,8 +17,8 @@ In order to use this package, you need to provide a user token to the Client str
 
 ```go
 c := &Client {
-    HostName: http://localhost:8080,
-    User: admin,
-    Token: token123,
+    HostName: "http://localhost:8080",
+    User: "admin",
+    Token: "token123",
 }
 ```
