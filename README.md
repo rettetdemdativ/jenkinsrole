@@ -22,3 +22,7 @@ c := &Client {
     Token: "token123",
 }
 ```
+
+# License
+
+This package is shared under the [MIT License](https://choosealicense.com/licenses/mit/).
