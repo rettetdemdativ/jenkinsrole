@@ -42,9 +42,8 @@ func checkValidHeader(req *http.Request) int {
 
 func TestAddRole(t *testing.T) {
 	const (
-		roleType  = "globalRole"
-		roleName  = "admin-role"
-		overwrite = "true"
+		roleType = "globalRole"
+		roleName = "admin-role"
 	)
 
 	defaultPermissionList := []jenkinsrole.Permission{
@@ -59,13 +58,13 @@ func TestAddRole(t *testing.T) {
 		roleType    string
 		roleName    string
 		permissions []jenkinsrole.Permission
-		overwrite   string
+		overwrite   bool
 
 		expectError bool
 	}{
-		{"valid", jenkinsUser, jenkinsToken, roleType, roleName, defaultPermissionList, overwrite, false},
-		{"invalid header", "", "", roleType, roleName, defaultPermissionList, overwrite, true},
-		{"body_missing_param", jenkinsUser, jenkinsToken, "", roleName, defaultPermissionList, overwrite, true},
+		{"valid", jenkinsUser, jenkinsToken, roleType, roleName, defaultPermissionList, true, false},
+		{"invalid header", "", "", roleType, roleName, defaultPermissionList, true, true},
+		{"body_missing_param", jenkinsUser, jenkinsToken, "", roleName, defaultPermissionList, true, true},
 	}
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {

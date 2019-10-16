@@ -47,7 +47,7 @@ func (c *Client) performRequest(method, url string, body *bytes.Reader) (*http.R
 
 // AddRole adds a role to the role map.
 // See https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L233
-func (c *Client) AddRole(roleType, roleName string, permissions []Permission, overwrite string) error {
+func (c *Client) AddRole(roleType, roleName string, permissions []Permission, overwrite bool) error {
 	targetURL := fmt.Sprintf("%s/role-strategy/strategy/addRole", c.HostName)
 
 	permStrings := make([]string, len(permissions))
@@ -57,7 +57,7 @@ func (c *Client) AddRole(roleType, roleName string, permissions []Permission, ov
 
 	body := bytes.NewReader([]byte(
 		fmt.Sprintf(
-			"type=%s&amp;roleName=%s&amp;permissionIds=%s&amp;overwrite=%s",
+			"type=%s&amp;roleName=%s&amp;permissionIds=%s&amp;overwrite=%t",
 			roleType,
 			roleName,
 			strings.Join(permStrings, ","),
