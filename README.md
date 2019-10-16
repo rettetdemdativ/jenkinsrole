@@ -1,5 +1,7 @@
 # jenkinsrole
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/calmandniceperson/jenkinsrole)](https://goreportcard.com/report/github.com/calmandniceperson/jenkinsrole) [![GoDoc](https://godoc.org/github.com/calmandniceperson/jenkinsrole?status.svg)](https://godoc.org/github.com/calmandniceperson/jenkinsrole)
+
 jenkinsrole is a Go package that wraps the API of the Role Strategy plugin for Jenkins. For additional info regarding the plugin itself, see [the plugin page](https://wiki.jenkins.io/display/JENKINS/Role+Strategy+Plugin).
 
 ## Using the package
