@@ -22,6 +22,24 @@ type Client struct {
 	Token string
 }
 
+func hostnameHasCorrectPrefix(hostname string) bool {
+	return strings.HasPrefix(hostname, "http://") || strings.HasPrefix(hostname, "https://")
+}
+
+// NewClient creates a new instance of Client and does additional checks to
+// ensure that all attributes are valid.
+func NewClient(hostname, user, token string) (*Client, error) {
+	if !hostnameHasCorrectPrefix(hostname) {
+		return nil, errors.New("Hostname has incorrect prefix ('https://' or 'http://' required)")
+	}
+	hostname = strings.TrimSuffix(hostname, "/")
+	return &Client{
+		HostName: hostname,
+		User:     user,
+		Token:    token,
+	}, nil
+}
+
 // performRequest creates a request, attaches the basic authentication header
 // to it and sends the request off.
 func (c *Client) performRequest(method, url string, body *bytes.Reader) (*http.Response, error) {
