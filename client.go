@@ -78,7 +78,7 @@ func (c *Client) AddRole(roleType, roleName string, permissions []Permission, ov
 	} else {
 		permStrings = make([]string, len(permissions))
 		for i, p := range permissions {
-			permStrings[i] = p.GetPermissionString()
+			permStrings[i] = p.getPermissionString()
 		}
 	}
 
