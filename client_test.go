@@ -1,26 +1,50 @@
 // Author(s): Michael Koeppl
 
-package jenkinsrole_test
+package jenkinsrole
 
 import (
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/calmandniceperson/jenkinsrole"
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	jenkinsUser  = "admin"
-	jenkinsToken = "testToken"
+var (
+	jenkinsHost  string
+	jenkinsUser  string
+	jenkinsToken string
 )
+
+func TestMain(m *testing.M) {
+	jHost := flag.String("jenkins_host", "", "The URL of the Jenkins instance")
+	jUser := flag.String("jenkins_user", "", "The Jenkins user to be used for testing")
+	jToken := flag.String("jenkins_token", "", "The token for the given Jenkins user")
+
+	flag.Parse()
+
+	if *jHost == "" || *jUser == "" || *jToken == "" {
+		panic("Missing params")
+	}
+
+	jenkinsHost = (*jHost)
+	jenkinsUser = (*jUser)
+	jenkinsToken = (*jToken)
+
+	code := m.Run()
+
+	// Perform teardown
+
+	os.Exit(code)
+}
 
 func checkValidHeader(req *http.Request) int {
 	const expectedHeaderPrefix = "Basic "
@@ -41,78 +65,76 @@ func checkValidHeader(req *http.Request) int {
 }
 
 func TestAddRole(t *testing.T) {
-	const (
-		roleType = "globalRole"
-		roleName = "admin-role"
-	)
-
-	defaultPermissionList := []jenkinsrole.Permission{
-		jenkinsrole.ItemReadPermission, jenkinsrole.ComputerBuildPermission,
-	}
-
 	testCases := []struct {
 		name string
 
-		headerUser  string
-		headerToken string
 		roleType    string
 		roleName    string
-		permissions []jenkinsrole.Permission
+		permissions []Permission
 		overwrite   bool
+		pattern     string
 
 		expectError bool
 	}{
-		{"valid", jenkinsUser, jenkinsToken, roleType, roleName, defaultPermissionList, true, false},
-		{"invalid header", "", "", roleType, roleName, defaultPermissionList, true, true},
-		{"body_missing_param", jenkinsUser, jenkinsToken, "", roleName, defaultPermissionList, true, true},
+		{"valid_global_all_perm", "projectRoles", "testRole1", []Permission{All}, true, "", false},
+		{"valid_global_all_perm_pattern", "projectRoles", "testRole1", []Permission{All}, true, "Pattern.*", false},
+		{"valid_global_spec_perm_pattern", "projectRoles", "testRole1", []Permission{ItemReadPermission, ItemCreatePermission}, true, "Pattern.*", false},
+		{"missing_type", "", "testRole2", []Permission{All}, true, "", true},
 	}
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		headerCode := checkValidHeader(req)
-		if headerCode != http.StatusOK {
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte("Invalid header"))
-			return
-		}
-
-		defer req.Body.Close()
-		body, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte(err.Error()))
-			return
-		}
-
-		params, err := url.ParseQuery(string(body))
-		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte(err.Error()))
-			return
-		}
-
-		if params.Get("type") == "" ||
-			params.Get("roleName") == "" ||
-			params.Get("permissionIds") == "" ||
-			params.Get("overwrite") == "" {
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte("Missing query param"))
-			return
-		}
-	}))
-	defer testServer.Close()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := jenkinsrole.Client{
-				HostName: testServer.URL,
-				User:     tc.headerUser,
-				Token:    tc.headerToken,
-			}
+			c, _ := NewClient(jenkinsHost, jenkinsUser, jenkinsToken)
 
-			err := c.AddRole(tc.roleType, tc.roleName, tc.permissions, tc.overwrite)
+			var err error
+			if tc.pattern == "" {
+				err = c.AddRole(tc.roleType, tc.roleName, tc.permissions, tc.overwrite)
+			} else {
+				err = c.AddRole(tc.roleType, tc.roleName, tc.permissions, tc.overwrite, tc.pattern)
+			}
 
 			if !tc.expectError {
 				assert.NoError(t, err)
+
+				req, _ := http.NewRequest(
+					http.MethodGet,
+					fmt.Sprintf("%s/role-strategy/strategy/getRole?type=%s&roleName=%s",
+						jenkinsHost,
+						tc.roleType,
+						tc.roleName,
+					),
+					nil,
+				)
+				encodedAuthString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", jenkinsUser, jenkinsToken)))
+				req.Header.Add("Authorization", "Basic "+encodedAuthString)
+
+				hc := &http.Client{}
+
+				res, err := hc.Do(req)
+				assert.NoError(t, err)
+				defer res.Body.Close()
+				assert.Equal(t, res.StatusCode, http.StatusOK)
+				respBody, err := ioutil.ReadAll(res.Body)
+				assert.NoError(t, err)
+				r := &Role{}
+				err = json.Unmarshal(respBody, r)
+				assert.NoError(t, err)
+
+				resPermMap := make(map[string]bool)
+				if !permListContainsAllPermission(tc.permissions) {
+					for _, p := range tc.permissions {
+						resPermMap[p.getPermissionString()] = true
+					}
+				} else {
+					for _, p := range permissionStrings {
+						resPermMap[p] = true
+					}
+				}
+				assert.EqualValues(t, resPermMap, r.PermissionIDs)
+
+				if tc.pattern != "" {
+					assert.Equal(t, tc.pattern, r.Pattern)
+				}
 			} else {
 				assert.Error(t, err)
 			}
@@ -173,7 +195,7 @@ func TestRemoveRoles(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := jenkinsrole.Client{
+			c := Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
@@ -245,7 +267,7 @@ func TestAssignRole(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := jenkinsrole.Client{
+			c := Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
@@ -317,7 +339,7 @@ func TestUnassignRole(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := jenkinsrole.Client{
+			c := Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
@@ -387,7 +409,7 @@ func TestDeleteSID(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := jenkinsrole.Client{
+			c := Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
@@ -435,7 +457,7 @@ func TestGetRole(t *testing.T) {
 			return
 		}
 
-		r := &jenkinsrole.Role{
+		r := &Role{
 			PermissionIDs: permissionIDs,
 			SIDs:          sids,
 		}
@@ -462,7 +484,7 @@ func TestGetRole(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &jenkinsrole.Client{
+			c := &Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
@@ -485,13 +507,13 @@ func TestGetRole(t *testing.T) {
 }
 
 func TestGetAllRoles(t *testing.T) {
-	rwu := jenkinsrole.RolesWithUsers{
+	rwu := RolesWithUsers{
 		"admin":    []string{"sid1", "sid2", "sid3"},
 		"testrole": []string{},
 	}
-	rolesMap := map[string]jenkinsrole.RolesWithUsers{
+	rolesMap := map[string]RolesWithUsers{
 		"globalRoles":  rwu,
-		"projectRoles": make(jenkinsrole.RolesWithUsers),
+		"projectRoles": make(RolesWithUsers),
 	}
 
 	testCases := []struct {
@@ -500,7 +522,7 @@ func TestGetAllRoles(t *testing.T) {
 		headerUser     string
 		headerToken    string
 		roleType       string
-		rolesWithUsers jenkinsrole.RolesWithUsers
+		rolesWithUsers RolesWithUsers
 
 		expectError bool
 	}{
@@ -536,7 +558,7 @@ func TestGetAllRoles(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &jenkinsrole.Client{
+			c := &Client{
 				HostName: testServer.URL,
 				User:     tc.headerUser,
 				Token:    tc.headerToken,
