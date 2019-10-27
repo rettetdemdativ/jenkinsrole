@@ -49,6 +49,7 @@ func (c *Client) performRequest(method, url string, body *bytes.Reader) (*http.R
 		req, err = http.NewRequest(method, url, nil)
 	} else {
 		req, err = http.NewRequest(method, url, body)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 	if err != nil {
 		return nil, err
