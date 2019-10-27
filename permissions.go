@@ -74,7 +74,19 @@ const (
 	LockableResourcesManagerReservePermission
 	// RunUpdatePermission = hudson.model.Run.Update
 	RunUpdatePermission
+
+	// All activates all permissions for a role.
+	All
 )
+
+func permListContainsAllPermission(permList []Permission) bool {
+	for _, p := range permList {
+		if p == All {
+			return true
+		}
+	}
+	return false
+}
 
 func (p Permission) getPermissionString() string {
 	return permissionStrings[p]
