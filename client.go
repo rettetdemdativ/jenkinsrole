@@ -66,23 +66,35 @@ func (c *Client) performRequest(method, url string, body *bytes.Reader) (*http.R
 
 // AddRole adds a role to the role map.
 // See https://github.com/runzexia/role-strategy-plugin/blob/5fdea531bc5aff5865a64cead6abcf9461720b1b/src/main/java/com/michelin/cio/hudson/plugins/rolestrategy/RoleBasedAuthorizationStrategy.java#L233
-func (c *Client) AddRole(roleType, roleName string, permissions []Permission, overwrite bool) error {
+func (c *Client) AddRole(roleType, roleName string, permissions []Permission, overwrite bool, pattern ...string) error {
 	targetURL := fmt.Sprintf("%s/role-strategy/strategy/addRole", c.HostName)
 
-	permStrings := make([]string, len(permissions))
-	for i, p := range permissions {
-		permStrings[i] = p.getPermissionString()
+	var permStrings []string
+	// If the package user added the 'All' permission to the list of
+	// permissions for the new role, we just add all available permissions
+	// (just use the pre-defined list).
+	if (len(permissions) == 1 && permissions[0] == All) || permListContainsAllPermission(permissions) {
+		permStrings = permissionStrings
+	} else {
+		permStrings = make([]string, len(permissions))
+		for i, p := range permissions {
+			permStrings[i] = p.GetPermissionString()
+		}
 	}
 
-	body := bytes.NewReader([]byte(
-		fmt.Sprintf(
-			"type=%s&amp;roleName=%s&amp;permissionIds=%s&amp;overwrite=%t",
-			roleType,
-			roleName,
-			strings.Join(permStrings, ","),
-			overwrite,
-		),
-	))
+	bodyStr := fmt.Sprintf(
+		"type=%s&roleName=%s&permissionIds=%s&overwrite=%t",
+		roleType,
+		roleName,
+		strings.Join(permStrings, ","),
+		overwrite,
+	)
+	if len(pattern) >= 1 && pattern[0] != "" {
+		bodyStr += fmt.Sprintf("&pattern=%s", pattern[0])
+	}
+
+	body := bytes.NewReader([]byte(bodyStr))
+
 	resp, err := c.performRequest(http.MethodPost, targetURL, body)
 	if err != nil {
 		return err
