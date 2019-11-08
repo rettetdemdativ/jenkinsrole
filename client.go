@@ -179,7 +179,7 @@ func (c *Client) AssignRole(roleType, roleName, sid string) error {
 func (c *Client) UnassignRole(roleType, roleName, sid string) error {
 	targetURL := fmt.Sprintf("%s/role-strategy/strategy/unassignRole", c.HostName)
 	body := bytes.NewReader([]byte(
-		fmt.Sprintf("type=%s&amp;roleName=%s&amp;sid=%s",
+		fmt.Sprintf("type=%s&roleName=%s&sid=%s",
 			roleType,
 			roleName,
 			sid,
