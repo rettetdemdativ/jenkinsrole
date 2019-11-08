@@ -118,7 +118,7 @@ func (c *Client) AddRole(roleType, roleName string, permissions []Permission, ov
 func (c *Client) RemoveRoles(roleType string, roleNames []string) error {
 	targetURL := fmt.Sprintf("%s/role-strategy/strategy/removeRoles", c.HostName)
 	body := bytes.NewReader([]byte(
-		fmt.Sprintf("type=%s&amp;roleNames=%s",
+		fmt.Sprintf("type=%s&roleNames=%s",
 			roleType,
 			strings.Join(roleNames, ","),
 		),
@@ -209,7 +209,7 @@ func (c *Client) UnassignRole(roleType, roleName, sid string) error {
 func (c *Client) DeleteSID(roleType, sid string) error {
 	targetURL := fmt.Sprintf("%s/role-strategy/strategy/deleteSid", c.HostName)
 	body := bytes.NewReader([]byte(
-		fmt.Sprintf("type=%s&amp;sid=%s",
+		fmt.Sprintf("type=%s&sid=%s",
 			roleType,
 			sid,
 		),
