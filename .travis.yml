@@ -12,4 +12,3 @@ install: true
 
 script:
   - go build
-  - go test
